@@ -41,7 +41,7 @@ export default function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-12 md:px-8 lg:gap-10">
         <div className="md:col-span-5">
           <img
-            src="https://res.cloudinary.com/dkbf7tvcx/image/upload/v1723169103/abimetals/logo/logo-footer-int.png"
+            src="https://res.cloudinary.com/dkbf7tvcx/image/upload/v1784113532/abimetals/logo/abi-logo-smlr.png"
             alt="ABI Manufacturing International"
             className="h-12 w-auto"
           />
