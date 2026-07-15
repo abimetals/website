@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+:root {
+  --abi-navy: #14314b;
+  --abi-slate: #696a6c;
+  --abi-footer: #1e2228;
+  --abi-white: #ffffff;
+  --abi-divider: #cccccc;
+  --background: #ffffff;
+  --foreground: #14314b;
+}
+
+@theme inline {
+  --color-abi-navy: var(--abi-navy);
+  --color-abi-slate: var(--abi-slate);
+  --color-abi-footer: var(--abi-footer);
+  --color-abi-white: var(--abi-white);
+  --color-abi-divider: var(--abi-divider);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out both;
+}
+
+.animate-delay-1 {
+  animation-delay: 0.12s;
+}
+
+.animate-delay-2 {
+  animation-delay: 0.24s;
+}
+
+.animate-delay-3 {
+  animation-delay: 0.36s;
+}
+
+.product-card img {
+  transition: transform 0.45s ease;
+}
+
+.product-card:hover img {
+  transform: scale(1.04);
+}
+
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 2px;
+  background: var(--abi-navy);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+}
+
+.fillout-embed,
+.fillout-embed iframe {
+  display: block;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: top;
+}
+
+.fillout-embed > div {
+  margin-bottom: 0 !important;
+}

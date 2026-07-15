@@ -1,0 +1,31 @@
+---
+description: Never use Next.js image optimization — always render original image URLs with plain img tags
+alwaysApply: true
+---
+
+# Images: No Next.js Optimization
+
+Do NOT transform, rewrite, proxy, or optimize image URLs using any Next.js-specific mechanism.
+
+## Rules (strict — no exceptions)
+
+- Always render image URLs exactly as they are stored.
+- Never generate URLs containing `/_next/`, `/_next/image`, `?url=`, `w=`, `q=`, or any other Next.js image optimization parameters.
+- Never wrap image URLs in any helper that modifies them.
+- Do not use the Next.js `<Image>` component unless the user explicitly requests it.
+- Use a standard HTML `<img>` element (or React `<img>`) for all images by default.
+- Preserve the original image URL 100% without modification.
+- This applies to every existing and future component, page, utility, and refactor.
+- If you encounter code that uses Next.js image optimization, replace it with a normal `<img>` implementation while keeping the same styling and behavior.
+- Never revert this preference unless the user explicitly instructs you to.
+
+## Example
+
+```tsx
+// ❌ Do not use
+import Image from "next/image";
+<Image src={url} width={800} height={600} alt="..." />
+
+// ✅ Use instead
+<img src={url} alt="..." className="..." />
+```
