@@ -61,7 +61,7 @@ export default function Header({ items }: { items: NavItem[] }) {
         <div className="mx-auto flex max-w-7xl items-center gap-6 px-5 py-4 md:px-8">
           <Link href="/" className="shrink-0" aria-label="ABI Manufacturing Intl Ltd home">
             <img
-              src="https://abimanufacturingint.com/images/logo/abi-logo-smlr.png"
+              src="https://res.cloudinary.com/dkbf7tvcx/image/upload/v1784113532/abimetals/logo/abi-logo-smlr.png"
               alt="ABI Manufacturing Intl Ltd"
               className="h-12 w-auto md:h-14"
             />
