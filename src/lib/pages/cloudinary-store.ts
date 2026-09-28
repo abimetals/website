@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import type { PagesStore } from "@/lib/pages/types";
 
-const PUBLIC_ID = "abimetals/content/pages";
+const PUBLIC_ID = "abimetals/content/pages.json";
 
 type CloudinaryConfig = {
   cloudName: string;
@@ -58,6 +58,13 @@ async function cloudinaryError(response: Response) {
   return data?.error?.message || "Cloudinary request failed.";
 }
 
+async function readStoreFile(url: string): Promise<PagesStore | null> {
+  const file = await fetch(url, { cache: "no-store" });
+  if (file.status === 404) return null;
+  if (!file.ok) throw new Error("Unable to load saved pages.");
+  return normalizeStore(JSON.parse(await file.text()));
+}
+
 export async function readCloudinaryStore(config: CloudinaryConfig): Promise<PagesStore> {
   const details = await fetch(
     `https://api.cloudinary.com/v1_1/${config.cloudName}/resources/raw/upload/${PUBLIC_ID}`,
@@ -67,19 +74,20 @@ export async function readCloudinaryStore(config: CloudinaryConfig): Promise<Pag
     }
   );
 
-  if (details.status === 404) return { pages: [], deletedBuiltinKeys: [] };
-  if (!details.ok) {
+  if (details.ok) {
+    const meta = (await details.json()) as { secure_url?: string };
+    if (meta.secure_url) {
+      const stored = await readStoreFile(meta.secure_url);
+      if (stored) return stored;
+    }
+  } else if (details.status !== 404) {
     throw new Error(await cloudinaryError(details));
   }
 
-  const meta = (await details.json()) as { secure_url?: string };
-  if (!meta.secure_url) return { pages: [], deletedBuiltinKeys: [] };
-
-  const file = await fetch(meta.secure_url, { cache: "no-store" });
-  if (file.status === 404) return { pages: [], deletedBuiltinKeys: [] };
-  if (!file.ok) throw new Error("Unable to load saved pages.");
-
-  return normalizeStore(JSON.parse(await file.text()));
+  const stored = await readStoreFile(
+    `https://res.cloudinary.com/${config.cloudName}/raw/upload/${PUBLIC_ID}`
+  );
+  return stored ?? { pages: [], deletedBuiltinKeys: [] };
 }
 
 export async function writeCloudinaryStore(config: CloudinaryConfig, store: PagesStore) {
