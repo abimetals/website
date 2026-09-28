@@ -16,14 +16,19 @@ async function requireAdmin() {
 
 function cleanEnv(value: string | undefined) {
   if (!value) return "";
-  let cleaned = value.trim();
+  let cleaned = value.replace(/[\u200B-\u200D\uFEFF\u00A0]/g, "").replace(/\s+/g, "");
   if (
     (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
     (cleaned.startsWith("'") && cleaned.endsWith("'"))
   ) {
-    cleaned = cleaned.slice(1, -1).trim();
+    cleaned = cleaned.slice(1, -1);
   }
   return cleaned;
+}
+
+function credentialHint(cloudName: string, apiKey: string, apiSecret: string) {
+  const ending = apiKey.slice(-4);
+  return `Using cloud "${cloudName}", API key ending ${ending} (${apiKey.length} characters), secret length ${apiSecret.length}.`;
 }
 
 function cloudinarySignature(
@@ -117,10 +122,11 @@ export async function POST(request: Request) {
       if (!data?.error?.message?.includes("Invalid Signature")) break;
     }
 
-    return NextResponse.json(
-      { error: data?.error?.message || "Upload failed." },
-      { status: 502 }
-    );
+    const detail = data?.error?.message || "Upload failed.";
+    const hint = detail.includes("Invalid Signature")
+      ? ` ${credentialHint(cloudName, apiKey, apiSecret)}`
+      : "";
+    return NextResponse.json({ error: `${detail}${hint}` }, { status: 502 });
   } catch {
     return NextResponse.json({ error: "Upload failed." }, { status: 500 });
   }
