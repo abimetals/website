@@ -3,6 +3,11 @@ import path from "path";
 import { unstable_noStore as noStore } from "next/cache";
 import type { ManagedPage, PagesStore } from "@/lib/pages/types";
 import { getBuiltinPages, builtinToManaged } from "@/lib/pages/builtins";
+import {
+  cloudinaryConfig,
+  readCloudinaryStore,
+  writeCloudinaryStore,
+} from "@/lib/pages/cloudinary-store";
 
 const DATA_DIR = path.join(process.cwd(), "content");
 const DATA_FILE = path.join(DATA_DIR, "pages.json");
@@ -23,6 +28,9 @@ async function ensureStore() {
 
 export async function readPagesStore(): Promise<PagesStore> {
   noStore();
+  const remote = cloudinaryConfig();
+  if (remote) return readCloudinaryStore(remote);
+
   await ensureStore();
   const raw = await fs.readFile(DATA_FILE, "utf8");
   try {
@@ -39,6 +47,12 @@ export async function readPagesStore(): Promise<PagesStore> {
 }
 
 export async function writePagesStore(store: PagesStore) {
+  const remote = cloudinaryConfig();
+  if (remote) {
+    await writeCloudinaryStore(remote, store);
+    return;
+  }
+
   await ensureStore();
   await fs.writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf8");
 }

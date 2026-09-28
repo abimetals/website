@@ -64,7 +64,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ page }, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Unable to create page." }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create page.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

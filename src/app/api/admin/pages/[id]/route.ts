@@ -89,8 +89,9 @@ export async function PUT(request: Request, { params }: Params) {
     });
 
     return NextResponse.json({ page });
-  } catch {
-    return NextResponse.json({ error: "Unable to update page." }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update page.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
