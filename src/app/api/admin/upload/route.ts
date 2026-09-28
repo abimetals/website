@@ -14,12 +14,28 @@ async function requireAdmin() {
   return await verifySessionToken(token);
 }
 
-function cloudinarySignature(params: Record<string, string>, apiSecret: string) {
+function cleanEnv(value: string | undefined) {
+  if (!value) return "";
+  let cleaned = value.trim();
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned;
+}
+
+function cloudinarySignature(
+  params: Record<string, string>,
+  apiSecret: string,
+  algorithm: "sha1" | "sha256"
+) {
   const payload = Object.keys(params)
     .sort()
     .map((key) => `${key}=${params[key]}`)
     .join("&");
-  return createHash("sha1").update(payload + apiSecret).digest("hex");
+  return createHash(algorithm).update(payload + apiSecret).digest("hex");
 }
 
 export async function POST(request: Request) {
@@ -28,12 +44,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  const cloudName = cleanEnv(process.env.CLOUDINARY_CLOUD_NAME);
+  const apiKey = cleanEnv(process.env.CLOUDINARY_API_KEY);
+  const apiSecret = cleanEnv(process.env.CLOUDINARY_API_SECRET);
   if (!cloudName || !apiKey || !apiSecret) {
     return NextResponse.json(
       { error: "Image uploads are not configured." },
+      { status: 500 }
+    );
+  }
+  if (apiSecret.includes("://") || apiKey.includes("://")) {
+    return NextResponse.json(
+      {
+        error:
+          "Use the numeric API Key and the API Secret, not the cloudinary:// environment variable.",
+      },
       { status: 500 }
     );
   }
@@ -62,34 +87,40 @@ export async function POST(request: Request) {
 
     const timestamp = String(Math.round(Date.now() / 1000));
     const params = { folder: UPLOAD_FOLDER, timestamp };
-    const signature = cloudinarySignature(params, apiSecret);
-
     const bytes = await file.arrayBuffer();
-    const blob = new Blob([bytes], { type: file.type });
-    const uploadBody = new FormData();
-    uploadBody.append("file", blob, file.name || "upload.jpg");
-    uploadBody.append("api_key", apiKey);
-    uploadBody.append("timestamp", timestamp);
-    uploadBody.append("signature", signature);
-    uploadBody.append("folder", UPLOAD_FOLDER);
+    const filename = file.name || "upload.jpg";
 
-    const uploadRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`,
-      { method: "POST", body: uploadBody }
-    );
-    const data = (await uploadRes.json().catch(() => null)) as {
-      secure_url?: string;
-      error?: { message?: string };
-    } | null;
-
-    if (!uploadRes.ok || !data?.secure_url) {
-      return NextResponse.json(
-        { error: data?.error?.message || "Upload failed." },
-        { status: 502 }
+    let data: { secure_url?: string; error?: { message?: string } } | null = null;
+    for (const algorithm of ["sha1", "sha256"] as const) {
+      const uploadBody = new FormData();
+      uploadBody.append("file", new Blob([bytes], { type: file.type }), filename);
+      uploadBody.append("api_key", apiKey);
+      uploadBody.append("timestamp", timestamp);
+      uploadBody.append(
+        "signature",
+        cloudinarySignature(params, apiSecret, algorithm)
       );
+      uploadBody.append("folder", UPLOAD_FOLDER);
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`,
+        { method: "POST", body: uploadBody }
+      );
+      data = (await uploadRes.json().catch(() => null)) as {
+        secure_url?: string;
+        error?: { message?: string };
+      } | null;
+
+      if (uploadRes.ok && data?.secure_url) {
+        return NextResponse.json({ url: data.secure_url });
+      }
+      if (!data?.error?.message?.includes("Invalid Signature")) break;
     }
 
-    return NextResponse.json({ url: data.secure_url });
+    return NextResponse.json(
+      { error: data?.error?.message || "Upload failed." },
+      { status: 502 }
+    );
   } catch {
     return NextResponse.json({ error: "Upload failed." }, { status: 500 });
   }
