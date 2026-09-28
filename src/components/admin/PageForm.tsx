@@ -249,7 +249,7 @@ export default function PageForm({
           <input
             value={values.image}
             onChange={(e) => update("image", e.target.value)}
-            placeholder="https://… or /uploads/…"
+            placeholder="https://res.cloudinary.com/…"
             className="w-full rounded-md border border-[#14314b]/20 bg-white px-3 py-2.5"
           />
         </label>

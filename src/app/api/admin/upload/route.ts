@@ -1,11 +1,12 @@
+import { createHash } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import {
   getSessionCookieName,
   verifySessionToken,
 } from "@/lib/auth";
+
+const UPLOAD_FOLDER = "abimetals/uploads";
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -13,10 +14,28 @@ async function requireAdmin() {
   return await verifySessionToken(token);
 }
 
+function cloudinarySignature(params: Record<string, string>, apiSecret: string) {
+  const payload = Object.keys(params)
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join("&");
+  return createHash("sha1").update(payload + apiSecret).digest("hex");
+}
+
 export async function POST(request: Request) {
   const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) {
+    return NextResponse.json(
+      { error: "Image uploads are not configured." },
+      { status: 500 }
+    );
   }
 
   try {
@@ -41,17 +60,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const ext = path.extname(file.name || "").toLowerCase() || ".jpg";
-    const safeExt = [".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)
-      ? ext
-      : ".jpg";
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${safeExt}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
-    await fs.writeFile(path.join(uploadDir, filename), bytes);
+    const timestamp = String(Math.round(Date.now() / 1000));
+    const params = { folder: UPLOAD_FOLDER, timestamp };
+    const signature = cloudinarySignature(params, apiSecret);
 
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    const bytes = await file.arrayBuffer();
+    const blob = new Blob([bytes], { type: file.type });
+    const uploadBody = new FormData();
+    uploadBody.append("file", blob, file.name || "upload.jpg");
+    uploadBody.append("api_key", apiKey);
+    uploadBody.append("timestamp", timestamp);
+    uploadBody.append("signature", signature);
+    uploadBody.append("folder", UPLOAD_FOLDER);
+
+    const uploadRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/image/upload`,
+      { method: "POST", body: uploadBody }
+    );
+    const data = (await uploadRes.json().catch(() => null)) as {
+      secure_url?: string;
+      error?: { message?: string };
+    } | null;
+
+    if (!uploadRes.ok || !data?.secure_url) {
+      return NextResponse.json(
+        { error: data?.error?.message || "Upload failed." },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ url: data.secure_url });
   } catch {
     return NextResponse.json({ error: "Upload failed." }, { status: 500 });
   }
